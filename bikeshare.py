@@ -28,11 +28,12 @@ def color_message(color_class, message):
         (str) message -- message after adding color ANSI codes.
     """
     colors = {
-        'PROMPT':   '\033[94m',    # BLUE
-        'RESULT':   '\033[92m',    # GREEN
-        'WARNING':  '\033[93m',    # YELLOW
-        'FAIL':     '\033[91;4m',  # RED;UNDERLINE
-        'RESET':    '\033[0m',     # TERMINAL DEFAULT
+        'PROMPT':       '\033[94m',    # BLUE
+        'RESULT':       '\033[92m',    # GREEN
+        'BOLDRESULT':   '\033[92;0m',  # GREEN;BOLD
+        'WARNING':      '\033[93m',    # YELLOW
+        'FAIL':         '\033[91;4m',  # RED;UNDERLINE
+        'RESET':        '\033[0m',     # TERMINAL DEFAULT
     }
 
     try:
@@ -96,13 +97,17 @@ def get_filters():
     if filter_choice == 'both':
         month = get_input(month_choices, month_message)
         day = get_input(day_choices, day_message)
+
+    # convert day to string
+    # note: day-2 due to start of week@ Sunday + list starts at 0 'not 1'
+    day = calendar.day_name[int(day) - 2] if day != 'all' else day
     
     message = ('-'*DIVDER_WIDTH + '\n' 
         + 'Data is filtered to city: {}, month: {}, day: {}\n'.format(
             city.title(), 
             month.title(), 
-            day.title() if day=='all' else calendar.day_name[int(day) - 2].title()) # day-2 due to start of week@ Sunday + list starts at 0 'not 1'
-        + '-'*DIVDER_WIDTH + '\n'
+            day.title())
+        + '-'*DIVDER_WIDTH
         )
 
     print(color_message('result', message))
@@ -120,7 +125,35 @@ def load_data(city, month, day):
     Returns:
         df - Pandas DataFrame containing city data filtered by month and day
     """
+    print(color_message('warning','\nLoading data with selected filters...'), end ='')
 
+    # load data file into a dataframe
+    df = pd.read_csv(CITY_DATA[city])
+
+    # convert the Start Time column to datetime
+    df['Start Time'] = pd.to_datetime(df['Start Time'])
+
+    # extract month and day of week from Start Time to create new columns
+    df['month'] = df['Start Time'].dt.month
+    df['day_of_week'] = df['Start Time'].dt.strftime("%A")
+
+    # filter by month if applicable
+    if month != 'all':
+        # use the index of the months list to get the corresponding int
+        months = ['january', 'february', 'march', 'april', 'may', 'june']
+        month = months.index(month) + 1
+
+        # filter by month to create the new dataframe
+        df = df[df.month == month]
+        print(color_message('warning','...'), end = '')
+
+    # filter by day of week if applicable
+    if day != 'all':
+        # filter by day of week to create the new dataframe
+        df = df[df.day_of_week == day.title()]
+        print(color_message('warning','...'), end = '')
+
+    print(color_message('result','[DONE]\n'))
 
     return df
 
@@ -128,17 +161,21 @@ def load_data(city, month, day):
 def time_stats(df):
     """Displays statistics on the most frequent times of travel."""
 
-    print('\nCalculating The Most Frequent Times of Travel...\n')
+    print(color_message('warning','Calculating The Most Frequent Times of Travel...'))
     start_time = time.time()
 
     # TO DO: display the most common month
+    # FIXME: What if month is set to a specific value?
 
 
     # TO DO: display the most common day of week
+    # FIXME: What if day is set to a specific value?
 
 
     # TO DO: display the most common start hour
-
+    df['hour'] = df['Start Time'].dt.hour
+    popular_hour = str(df['hour'].mode()[0])
+    print(color_message('result','Most Popular Start Hour: '), color_message('boldresult',popular_hour))
 
     print("\nThis took %s seconds." % (time.time() - start_time))
     print('-'*40)
@@ -204,15 +241,18 @@ def main():
         df = load_data(city, month, day)
 
         time_stats(df)
-        station_stats(df)
-        trip_duration_stats(df)
-        user_stats(df)
+        #station_stats(df)
+        #trip_duration_stats(df)
+        #user_stats(df)
 
-        restart = input('\nWould you like to restart? Enter yes or no.\n')
-        if restart.lower() != 'yes':
-            break
+        #restart = input('\nWould you like to restart? Enter yes or no.\n')
+        #if restart.lower() != 'yes':
+        #    break
 
 
 if __name__ == "__main__":
-	#main()
-    get_filters()
+	main()
+    ## get_filters()
+    ## df = load_data('new york', 'march', 'monday')
+    # city, month, day = get_filters()
+    # df = load_data(city, month, day)

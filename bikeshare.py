@@ -15,6 +15,7 @@ CITY_DATA = { 'chicago': 'chicago.csv',
               'washington': 'washington.csv' }
 
 DIVDER_WIDTH = 80
+PADDING = 13
 
 def color_message(color_class, message):
     """
@@ -30,7 +31,7 @@ def color_message(color_class, message):
     colors = {
         'PROMPT':       '\033[94m',    # BLUE
         'RESULT':       '\033[92m',    # GREEN
-        'BOLDRESULT':   '\033[92;0m',  # GREEN;BOLD
+        'BOLDRESULT':   '\033[92;1m',  # GREEN;BOLD
         'WARNING':      '\033[93m',    # YELLOW
         'FAIL':         '\033[91;4m',  # RED;UNDERLINE
         'RESET':        '\033[0m',     # TERMINAL DEFAULT
@@ -40,7 +41,35 @@ def color_message(color_class, message):
         return colors[color_class.upper()] + message + colors['RESET']
     except:
         return message
+
+def done_w_time(start_time):
+    """
+    returns [Done] with optional time-stamp of elapsed time (if bigger than 1ms)
+
+    Args:
+        (flt) start_time - name of the city to analyze
+    Returns:
+        (str) string of [Done] + optional elapsed time in ms (if >1ms)
+    """
+    elapsed_time_ms = round((time.time() - start_time)*1000)
+    elapsed_time_str = str(elapsed_time_ms)+'ms' if elapsed_time_ms < 1000 else str(round(elapsed_time_ms/1000,1))+'s'
     
+    return '[DONE]' if elapsed_time_ms <1 else '[Done], {}'.format(elapsed_time_str)
+
+def extra_stats_message(previous_item, stats_name, state_value):
+    """
+    returns extra stats with label & proper padding from previous item
+
+    Args:
+        (str)   previous_item - name of the city to analyze
+        (str)   stats_name - name of the state to be posted.
+        (str)   state_value - string value associated with state_name
+    Returns:
+        (str) message to be added inline as an extra stats (no \n)
+    """
+
+    return color_message('result',' '*(PADDING-len(previous_item))+stats_name+': ')+ color_message('BOLDRESULT',str(state_value))
+
 def get_input(choices, message, color_class = 'prompt'):
     """
     Inquiry user input with validation
@@ -125,6 +154,7 @@ def load_data(city, month, day):
     Returns:
         df - Pandas DataFrame containing city data filtered by month and day
     """
+    start_time = time.time()
     print(color_message('warning','\nLoading data with selected filters...'), end ='')
 
     # load data file into a dataframe
@@ -145,41 +175,67 @@ def load_data(city, month, day):
 
         # filter by month to create the new dataframe
         df = df[df.month == month]
-        print(color_message('warning','...'), end = '')
+    print(color_message('warning','...'), end = '')
 
     # filter by day of week if applicable
     if day != 'all':
         # filter by day of week to create the new dataframe
         df = df[df.day_of_week == day.title()]
-        print(color_message('warning','...'), end = '')
+    print(color_message('warning','...'), end = '')
 
-    print(color_message('result','[DONE]\n'))
+    print(color_message('result',done_w_time(start_time)))
 
     return df
 
-
-def time_stats(df):
+def time_stats(df, month, day):
     """Displays statistics on the most frequent times of travel."""
 
-    print(color_message('warning','Calculating The Most Frequent Times of Travel...'))
     start_time = time.time()
+    print(color_message('warning','Calculating The Most Frequent Times of Travel...'), end='')
+    
+    result_message = ''
 
-    # TO DO: display the most common month
-    # FIXME: What if month is set to a specific value?
+    # calculate the most common month
+    # omit if month is set to a specific value? (ex. omit if month != all)
+    if month == 'all':
+        popular_month = df['month'].mode()[0]
+        popular_month_count = df[df['month']==popular_month]['month'].count()
+        popular_month_str = calendar.month_name[popular_month]
+        result_message += (
+            color_message('result','Most Popular Month:         ')+ color_message('BOLDRESULT',popular_month_str)+
+            extra_stats_message(popular_month_str, 'Count', popular_month_count)+
+            '\n'
+        )
+    print(color_message('warning','...'), end = '')
 
 
-    # TO DO: display the most common day of week
-    # FIXME: What if day is set to a specific value?
+    # calculate the most common day of week
+    # omit if day is set to a specific value? (ex. omit if day != all)
+    if day == 'all':
+        popular_day = df['day_of_week'].mode()[0]
+        popular_day_count = df[df['day_of_week']==popular_day]['day_of_week'].count()
+        result_message += (
+            color_message('result','Most Popular Day of Week:   ')+ color_message('BOLDRESULT',popular_day)+
+            extra_stats_message(popular_day, 'Count', popular_day_count)+
+            '\n'
+        )
+    print(color_message('warning','...'), end = '')
 
 
-    # TO DO: display the most common start hour
+    # calculate the most common start hour
     df['hour'] = df['Start Time'].dt.hour
-    popular_hour = str(df['hour'].mode()[0])
-    print(color_message('result','Most Popular Start Hour: '), color_message('boldresult',popular_hour))
+    popular_hour = df['hour'].mode()[0]
+    popular_hour_str = str(popular_hour)
+    popular_hour_count = df[df['hour']==popular_hour]['hour'].count()
+    result_message += (
+        color_message('result','Most Popular Start Hour:    ')+ color_message('BOLDRESULT',popular_hour_str)+
+        extra_stats_message(popular_hour_str, 'Count', popular_hour_count)+
+        '\n'
+    )
+    print(color_message('result',done_w_time(start_time)))
 
-    print("\nThis took %s seconds." % (time.time() - start_time))
-    print('-'*40)
-
+    #Print results next, 
+    print(result_message)
 
 def station_stats(df):
     """Displays statistics on the most popular stations and trip."""
@@ -236,18 +292,24 @@ def user_stats(df):
 
 
 def main():
-    while True:
-        city, month, day = get_filters()
-        df = load_data(city, month, day)
+    #city, month, day = 'washington', 'all', 'all'
+    city, month, day = get_filters()
+    df = load_data(city, month, day)
 
-        time_stats(df)
-        #station_stats(df)
-        #trip_duration_stats(df)
-        #user_stats(df)
+    time_stats(df, month, day)
+    
+    # while True:
+    #     city, month, day = get_filters()
+    #     df = load_data(city, month, day)
 
-        #restart = input('\nWould you like to restart? Enter yes or no.\n')
-        #if restart.lower() != 'yes':
-        #    break
+    #     time_stats(df, month, day)
+    #     station_stats(df)
+    #     trip_duration_stats(df)
+    #     user_stats(df)
+
+    #     restart = input('\nWould you like to restart? Enter yes or no.\n')
+    #     if restart.lower() != 'yes':
+    #         break
 
 
 if __name__ == "__main__":

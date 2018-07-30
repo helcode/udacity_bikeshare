@@ -401,6 +401,24 @@ def main():
         trip_duration_stats(df)
         user_stats(df)
 
+        # check with user if he would like to show the raw data
+        show_raw_choice = get_input(['yes', 'no'], "Would you like to view raw data? Enter 'yes' or 'no'. ")
+        
+        # loop in 
+        i = 0 # loop control
+        pd.set_option('display.expand_frame_repr', False)
+
+        while show_raw_choice == 'yes':
+            # showing 5 entries of raw data
+            
+            result_message = df[i:i+5].__str__()
+            print(color_message('result', 'showing raw data row {} to {}').format(i+1,i+5))
+            print(color_message('result',result_message))
+            
+            # check if user would like to show the next 5 entries
+            show_raw_choice = get_input(['yes', 'no'], "Would you like to show the next 5 entries? Enter 'yes' or 'no'.")
+            i += 5
+
         restart = input('\nWould you like to restart? Enter yes or no.\n')
         if restart.lower() != 'yes':
             break
